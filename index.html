@@ -1,0 +1,1294 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DevNexus Virtual Office</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://meet.jit.si/external_api.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: #000; color: #fff; overflow: hidden; }
+
+        #canvas-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
+
+        /* TELA DE ENTRADA */
+        #entry-screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(135deg, #000 0%, #0a0a1a 50%, #1a0a2e 100%);
+            z-index: 100; overflow-y: auto; -webkit-overflow-scrolling: touch;
+        }
+        #entry-screen::-webkit-scrollbar { width: 6px; }
+        #entry-screen::-webkit-scrollbar-thumb { background: rgba(0,180,255,0.3); border-radius: 3px; }
+
+        .entry-wrapper {
+            min-height: 100vh; display: flex; flex-direction: column; align-items: center;
+            justify-content: flex-start; padding: 30px 16px 60px;
+        }
+
+        .logo-container { text-align: center; margin-bottom: 24px; }
+        .logo-container h1 {
+            font-size: clamp(1.8rem, 5vw, 3.2rem); font-weight: 800;
+            background: linear-gradient(90deg, #00B4FF, #D946EF);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            letter-spacing: -2px;
+        }
+        .logo-container p { color: #888; margin-top: 8px; font-size: 1rem; }
+        .badge {
+            display: inline-block; background: linear-gradient(90deg, #00B4FF, #D946EF);
+            color: #000; padding: 6px 16px; border-radius: 20px; font-size: 0.8rem;
+            font-weight: 700; margin-bottom: 12px; text-transform: uppercase;
+        }
+
+        .entry-form {
+            background: rgba(255,255,255,0.03); border: 1px solid rgba(0,180,255,0.15);
+            border-radius: 20px; padding: 28px; width: 100%; max-width: 460px;
+        }
+
+        .form-group { margin-bottom: 16px; }
+        .form-group label { display: block; margin-bottom: 6px; color: #aaa; font-size: 0.85rem; font-weight: 500; }
+        .form-group input {
+            width: 100%; padding: 12px 16px; background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(0,180,255,0.2); border-radius: 10px; color: #fff;
+            font-size: 1rem; -webkit-appearance: none;
+        }
+        .form-group input:focus { outline: none; border-color: #00B4FF; box-shadow: 0 0 15px rgba(0,180,255,0.2); }
+
+        .avatar-preview {
+            width: 90px; height: 90px; border-radius: 50%; margin: 0 auto 16px;
+            background: linear-gradient(135deg, #00B4FF, #D946EF);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 2.2rem; border: 3px solid rgba(255,255,255,0.1);
+        }
+
+        .avatar-customization { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 14px; }
+        .color-option {
+            width: 100%; aspect-ratio: 1; border-radius: 10px; cursor: pointer;
+            border: 2px solid transparent; transition: all 0.3s;
+        }
+        .color-option:hover { transform: scale(1.08); }
+        .color-option.active { border-color: #fff; box-shadow: 0 0 12px rgba(0,180,255,0.5); }
+
+        .style-option {
+            padding: 10px 14px; background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(0,180,255,0.2); border-radius: 10px;
+            cursor: pointer; text-align: center; font-size: 0.85rem; color: #ccc; transition: all 0.3s;
+        }
+        .style-option:hover, .style-option.active {
+            background: linear-gradient(90deg, #00B4FF, #D946EF); color: #000;
+            font-weight: 700; border-color: transparent;
+        }
+
+        .btn-primary {
+            width: 100%; padding: 16px; background: linear-gradient(90deg, #00B4FF, #D946EF);
+            border: none; border-radius: 12px; color: #000; font-size: 1.05rem;
+            font-weight: 700; cursor: pointer; text-transform: uppercase; letter-spacing: 1px;
+            -webkit-appearance: none; margin-top: 8px;
+        }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(0,180,255,0.4); }
+
+        .share-section { margin-top: 14px; padding-top: 14px; border-top: 1px solid rgba(255,255,255,0.05); }
+        .share-section label { display: block; margin-bottom: 6px; color: #aaa; font-size: 0.8rem; }
+        .share-link-box { display: flex; gap: 8px; align-items: stretch; }
+        .share-link {
+            flex: 1; background: rgba(0,180,255,0.08); border: 1px dashed rgba(0,180,255,0.4);
+            padding: 10px 12px; border-radius: 10px; font-family: monospace;
+            font-size: 0.75rem; color: #00B4FF; word-break: break-all; display: flex; align-items: center;
+        }
+        .btn-copy {
+            padding: 10px 14px; background: rgba(0,180,255,0.15); border: 1px solid rgba(0,180,255,0.3);
+            border-radius: 10px; color: #00B4FF; font-size: 0.8rem; font-weight: 600;
+            cursor: pointer; white-space: nowrap; -webkit-appearance: none;
+        }
+        .btn-copy:hover { background: rgba(0,180,255,0.3); }
+        .btn-copy.copied { background: rgba(0,255,136,0.2); border-color: #00ff88; color: #00ff88; }
+
+        .scroll-hint { text-align: center; color: #666; font-size: 0.75rem; margin-top: 6px; animation: bounce 2s infinite; }
+        @keyframes bounce { 0%,100% { transform: translateY(0); } 50% { transform: translateY(4px); } }
+
+        /* HUD */
+        #hud { position: fixed; top: 16px; left: 16px; z-index: 20; display: none; }
+        .hud-item {
+            background: rgba(0,0,0,0.75); backdrop-filter: blur(10px); border: 1px solid rgba(0,180,255,0.2);
+            border-radius: 10px; padding: 10px 16px; margin-bottom: 8px; font-size: 0.85rem;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .hud-item .indicator { width: 8px; height: 8px; border-radius: 50%; background: #00ff88; animation: pulse 2s infinite; }
+        @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+        /* CONTROLES */
+        #controls-hint {
+            position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+            background: rgba(0,0,0,0.75); backdrop-filter: blur(10px);
+            border: 1px solid rgba(0,180,255,0.2); border-radius: 10px;
+            padding: 10px 20px; font-size: 0.8rem; color: #aaa;
+            display: none; z-index: 20; text-align: center;
+        }
+        .key { display: inline-block; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 5px; padding: 2px 7px; font-family: monospace; font-size: 0.75rem; margin: 0 2px; }
+
+        /* VIDEO */
+        #video-panel {
+            position: fixed; top: 16px; right: 16px; width: 380px; height: 260px;
+            background: rgba(0,0,0,0.9); border: 2px solid rgba(0,180,255,0.3);
+            border-radius: 14px; overflow: hidden; display: none; z-index: 30;
+        }
+        #video-panel.active { display: block; animation: slideIn 0.4s ease; }
+        @keyframes slideIn { from { transform: translateX(80px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        #jitsi-container { width: 100%; height: 100%; }
+        .video-header {
+            position: absolute; top: 0; left: 0; right: 0; padding: 8px 12px;
+            background: linear-gradient(90deg, rgba(0,0,0,0.8), transparent);
+            display: flex; justify-content: space-between; align-items: center; z-index: 5;
+        }
+        .video-header span { font-size: 0.8rem; font-weight: 600; color: #00B4FF; }
+        .video-close {
+            background: rgba(255,50,50,0.8); border: none; color: #fff;
+            width: 26px; height: 26px; border-radius: 50%; cursor: pointer;
+            font-size: 1rem; display: flex; align-items: center; justify-content: center;
+        }
+
+        /* PARTICIPANTES */
+        #participants-panel {
+            position: fixed; bottom: 16px; right: 16px; background: rgba(0,0,0,0.8);
+            backdrop-filter: blur(15px); border: 1px solid rgba(0,180,255,0.2);
+            border-radius: 14px; padding: 14px; max-width: 220px;
+            display: none; z-index: 20; max-height: 280px; overflow-y: auto;
+        }
+        .participant-item { display: flex; align-items: center; gap: 8px; padding: 6px; border-radius: 8px; margin-bottom: 4px; font-size: 0.85rem; }
+        .participant-avatar {
+            width: 28px; height: 28px; border-radius: 50%;
+            background: linear-gradient(135deg, #00B4FF, #D946EF);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.75rem; font-weight: 700; flex-shrink: 0;
+        }
+
+        /* NOTIFICAÇÃO */
+        .notification {
+            position: fixed; top: 80px; left: 50%; transform: translateX(-50%) translateY(-20px);
+            background: linear-gradient(90deg, #00B4FF, #D946EF); color: #000;
+            padding: 12px 24px; border-radius: 10px; font-weight: 700;
+            font-size: 0.9rem; opacity: 0; pointer-events: none;
+            transition: all 0.4s ease; z-index: 50; text-align: center;
+        }
+        .notification.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+        /* RESPONSIVO */
+        @media (max-width: 768px) {
+            .entry-wrapper { padding: 20px 12px 40px; }
+            .entry-form { padding: 20px; }
+            .avatar-preview { width: 70px; height: 70px; font-size: 1.8rem; }
+            #video-panel { width: calc(100% - 32px); height: 220px; top: auto; bottom: 70px; right: 16px; }
+            .share-link-box { flex-direction: column; }
+            .btn-copy { width: 100%; padding: 10px; }
+        }
+    </style>
+</head>
+<body>
+    <div id="canvas-container"></div>
+
+    <!-- TELA DE ENTRADA -->
+    <div id="entry-screen">
+        <div class="entry-wrapper">
+            <div class="logo-container">
+                <div class="badge">DevNexus Virtual Office</div>
+                <h1>Sala de Reuniões 3D</h1>
+                <p>Entre no ambiente virtual e colabore em tempo real</p>
+            </div>
+
+            <div class="entry-form">
+                <div class="avatar-preview" id="avatar-preview">👤</div>
+
+                <div class="form-group">
+                    <label>Seu Nome</label>
+                    <input type="text" id="user-name" placeholder="Digite seu nome" maxlength="20" value="Visitante">
+                </div>
+
+                <div class="form-group">
+                    <label>Cor do Avatar</label>
+                    <div class="avatar-customization" id="color-picker">
+                        <div class="color-option active" style="background: linear-gradient(135deg, #00B4FF, #D946EF)" data-color="gradient1"></div>
+                        <div class="color-option" style="background: linear-gradient(135deg, #1E40AF, #00B4FF)" data-color="gradient2"></div>
+                        <div class="color-option" style="background: linear-gradient(135deg, #D946EF, #ff6b6b)" data-color="gradient3"></div>
+                        <div class="color-option" style="background: linear-gradient(135deg, #00ff88, #00B4FF)" data-color="gradient4"></div>
+                        <div class="color-option" style="background: linear-gradient(135deg, #ffd700, #ff6b6b)" data-color="gradient5"></div>
+                        <div class="color-option" style="background: linear-gradient(135deg, #8b5cf6, #ec4899)" data-color="gradient6"></div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Estilo</label>
+                    <div class="avatar-customization" style="grid-template-columns: repeat(2, 1fr);" id="style-picker">
+                        <div class="style-option active" data-style="casual">Casual</div>
+                        <div class="style-option" data-style="executive">Executivo</div>
+                        <div class="style-option" data-style="creative">Criativo</div>
+                        <div class="style-option" data-style="tech">Tech</div>
+                    </div>
+                </div>
+
+                <div class="share-section">
+                    <label>🔗 Link da Sala (compartilhe com sua equipe)</label>
+                    <div class="share-link-box">
+                        <div class="share-link" id="room-link">Carregando...</div>
+                        <button class="btn-copy" id="btn-copy" onclick="copyLink()">Copiar</button>
+                    </div>
+                    <div class="scroll-hint" id="scroll-hint">↓ Role para baixo e clique em "Entrar na Sala"</div>
+                </div>
+
+                <button class="btn-primary" id="btn-enter" onclick="enterRoom()">Entrar na Sala</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- HUD -->
+    <div id="hud">
+        <div class="hud-item">
+            <div class="indicator"></div>
+            <span id="hud-room">Sala: Reunião</span>
+        </div>
+        <div class="hud-item">
+            <span id="hud-users">👥 1 participante</span>
+        </div>
+    </div>
+
+    <!-- CONTROLES -->
+    <div id="controls-hint">
+        <span class="key">W</span><span class="key">A</span><span class="key">S</span><span class="key">D</span> para mover | <span class="key">E</span> sentar/levantar | <span class="key">ESC</span> liberar mouse
+    </div>
+
+    <!-- VIDEO -->
+    <div id="video-panel">
+        <div class="video-header">
+            <span>📹 Reunião em Andamento</span>
+            <button class="video-close" onclick="closeVideo()">×</button>
+        </div>
+        <div id="jitsi-container"></div>
+    </div>
+
+    <!-- PARTICIPANTES -->
+    <div id="participants-panel">
+        <div style="font-size: 0.85rem; font-weight: 700; margin-bottom: 10px; color: #00B4FF;">Participantes</div>
+        <div id="participants-list"></div>
+    </div>
+
+    <!-- NOTIFICAÇÃO -->
+    <div class="notification" id="notification">Mensagem</div>
+
+    <script>
+    // ==========================================
+    // ESTADO GLOBAL
+    // ==========================================
+    var state = {
+        roomId: null,
+        userName: '',
+        avatarColor: 'gradient1',
+        avatarStyle: 'casual',
+        isInRoom: false,
+        isSeated: false,
+        seatedChair: null,
+        jitsiApi: null,
+        players: {},
+        localPlayer: null,
+        camera: null,
+        scene: null,
+        renderer: null,
+        chairs: [],
+        raycaster: new THREE.Raycaster(),
+        mouse: new THREE.Vector2(),
+        keys: {},
+        moveSpeed: 0.08,
+        bc: null,
+        userId: 'user_' + Math.random().toString(36).substr(2, 9)
+    };
+
+    function log(msg) {
+        console.log('[DevNexus]', msg);
+    }
+
+    function showNotification(msg) {
+        var notif = document.getElementById('notification');
+        if (!notif) return;
+        notif.textContent = msg;
+        notif.classList.add('show');
+        setTimeout(function() { notif.classList.remove('show'); }, 3000);
+    }
+
+    // ==========================================
+    // ROOM ID E LINK
+    // ==========================================
+    var urlParams = new URLSearchParams(window.location.search);
+    state.roomId = urlParams.get('room') || generateRoomId();
+
+    function generateRoomId() {
+        return 'devnexus-' + Math.random().toString(36).substr(2, 8);
+    }
+
+    var shareUrl = window.location.origin + window.location.pathname + '?room=' + state.roomId;
+
+    function updateRoomLink() {
+        var el = document.getElementById('room-link');
+        if (el) el.textContent = shareUrl;
+    }
+
+    function copyLink() {
+        var btn = document.getElementById('btn-copy');
+        try {
+            navigator.clipboard.writeText(shareUrl).then(function() {
+                if (btn) { btn.textContent = '✓ Copiado!'; btn.classList.add('copied'); }
+                showNotification('🔗 Link copiado!');
+                setTimeout(function() {
+                    if (btn) { btn.textContent = 'Copiar'; btn.classList.remove('copied'); }
+                }, 2000);
+            });
+        } catch(e) {
+            var input = document.createElement('input');
+            input.value = shareUrl;
+            document.body.appendChild(input);
+            input.select();
+            document.execCommand('copy');
+            document.body.removeChild(input);
+            if (btn) { btn.textContent = '✓ Copiado!'; btn.classList.add('copied'); }
+            showNotification('🔗 Link copiado!');
+            setTimeout(function() {
+                if (btn) { btn.textContent = 'Copiar'; btn.classList.remove('copied'); }
+            }, 2000);
+        }
+    }
+
+    // ==========================================
+    // THREE.JS
+    // ==========================================
+    function initThreeJS() {
+        log('Iniciando Three.js...');
+        try {
+            var container = document.getElementById('canvas-container');
+            if (!container) { log('ERRO: canvas-container nao encontrado'); return false; }
+
+            state.scene = new THREE.Scene();
+            state.scene.background = new THREE.Color(0x0a0a0a);
+            state.scene.fog = new THREE.Fog(0x0a0a0a, 10, 30);
+
+            state.camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100);
+            state.camera.position.set(0, 3, 8);
+
+            state.renderer = new THREE.WebGLRenderer({ antialias: true });
+            state.renderer.setSize(window.innerWidth, window.innerHeight);
+            state.renderer.shadowMap.enabled = true;
+            state.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            state.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            container.appendChild(state.renderer.domElement);
+
+            // Iluminacao
+            state.scene.add(new THREE.AmbientLight(0x404040, 0.5));
+
+            var dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            dirLight.position.set(5, 10, 5);
+            dirLight.castShadow = true;
+            state.scene.add(dirLight);
+
+            var pl1 = new THREE.PointLight(0x00B4FF, 0.5, 10);
+            pl1.position.set(-5, 4, -5);
+            state.scene.add(pl1);
+
+            var pl2 = new THREE.PointLight(0xD946EF, 0.5, 10);
+            pl2.position.set(5, 4, 5);
+            state.scene.add(pl2);
+
+            // Chao
+            var floor = new THREE.Mesh(
+                new THREE.PlaneGeometry(20, 20),
+                new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.8, metalness: 0.2 })
+            );
+            floor.rotation.x = -Math.PI / 2;
+            floor.receiveShadow = true;
+            state.scene.add(floor);
+
+            var grid = new THREE.GridHelper(20, 20, 0x00B4FF, 0x222222);
+            grid.position.y = 0.01;
+            state.scene.add(grid);
+
+            // Mesa
+            createTable();
+            createChairs();
+            createWalls();
+            createWindows();
+            createDecorations();
+
+            // Eventos
+            window.addEventListener('resize', onWindowResize);
+            document.addEventListener('keydown', onKeyDown);
+            document.addEventListener('keyup', onKeyUp);
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('click', onMouseClick);
+
+            container.addEventListener('click', function() {
+                if (state.isInRoom) container.requestPointerLock();
+            });
+
+            document.addEventListener('pointerlockchange', function() {
+                if (document.pointerLockElement === container) {
+                    document.addEventListener('mousemove', onMouseMoveLocked);
+                } else {
+                    document.removeEventListener('mousemove', onMouseMoveLocked);
+                }
+            });
+
+            log('Three.js iniciado com sucesso!');
+            return true;
+        } catch (err) {
+            log('ERRO Three.js: ' + err.message);
+            showNotification('❌ Erro ao carregar 3D');
+            return false;
+        }
+    }
+
+    function createTable() {
+        var tableTop = new THREE.Mesh(
+            new THREE.CylinderGeometry(2.5, 2.5, 0.1, 32),
+            new THREE.MeshStandardMaterial({ color: 0x2a2a2a, roughness: 0.3, metalness: 0.7 })
+        );
+        tableTop.position.set(0, 1.2, 0);
+        tableTop.castShadow = true;
+        state.scene.add(tableTop);
+
+        var base = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.3, 0.8, 1.2, 16),
+            new THREE.MeshStandardMaterial({ color: 0x333333 })
+        );
+        base.position.set(0, 0.6, 0);
+        base.castShadow = true;
+        state.scene.add(base);
+
+        var glow = new THREE.Mesh(
+            new THREE.RingGeometry(2.4, 2.6, 32),
+            new THREE.MeshBasicMaterial({ color: 0x00B4FF, transparent: true, opacity: 0.3, side: THREE.DoubleSide })
+        );
+        glow.rotation.x = -Math.PI / 2;
+        glow.position.set(0, 1.21, 0);
+        state.scene.add(glow);
+    }
+
+    function createChairs() {
+        var positions = [
+            { x: 0, z: -3.5, rot: 0 },
+            { x: -3, z: -2, rot: Math.PI / 3 },
+            { x: -3, z: 2, rot: 2 * Math.PI / 3 },
+            { x: 0, z: 3.5, rot: Math.PI },
+            { x: 3, z: 2, rot: -2 * Math.PI / 3 },
+            { x: 3, z: -2, rot: -Math.PI / 3 }
+        ];
+
+        positions.forEach(function(pos, index) {
+            var chair = createChairMesh();
+            chair.position.set(pos.x, 0, pos.z);
+            chair.rotation.y = pos.rot;
+            chair.userData = { id: index, isOccupied: false, sitPosition: new THREE.Vector3(pos.x, 0.8, pos.z) };
+            state.scene.add(chair);
+            state.chairs.push(chair);
+        });
+    }
+
+    function createChairMesh() {
+        var group = new THREE.Group();
+
+        var seatMat = new THREE.MeshStandardMaterial({ color: 0x1E40AF });
+        var seat = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.1, 0.8), seatMat);
+        seat.position.y = 0.8;
+        seat.castShadow = true;
+        group.add(seat);
+
+        var back = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.8, 0.1), seatMat);
+        back.position.set(0, 1.2, -0.35);
+        back.castShadow = true;
+        group.add(back);
+
+        var legMat = new THREE.MeshStandardMaterial({ color: 0x444444 });
+        var legPos = [[-0.3, 0.4, -0.3], [0.3, 0.4, -0.3], [-0.3, 0.4, 0.3], [0.3, 0.4, 0.3]];
+        legPos.forEach(function(pos) {
+            var leg = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.8, 8), legMat);
+            leg.position.set(pos[0], pos[1], pos[2]);
+            leg.castShadow = true;
+            group.add(leg);
+        });
+
+        var indicator = new THREE.Mesh(
+            new THREE.SphereGeometry(0.15, 16, 16),
+            new THREE.MeshBasicMaterial({ color: 0x00ff88, transparent: true, opacity: 0.6 })
+        );
+        indicator.position.y = 1.8;
+        indicator.userData = { isIndicator: true };
+        group.add(indicator);
+
+        return group;
+    }
+
+    function createWalls() {
+        var wallMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.9 });
+
+        var backWall = new THREE.Mesh(new THREE.BoxGeometry(20, 5, 0.2), wallMat);
+        backWall.position.set(0, 2.5, -10);
+        state.scene.add(backWall);
+
+        var panel = new THREE.Mesh(
+            new THREE.PlaneGeometry(8, 2),
+            new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.9 })
+        );
+        panel.position.set(0, 3, -9.9);
+        state.scene.add(panel);
+
+        var textMesh = new THREE.Mesh(
+            new THREE.BoxGeometry(4, 0.5, 0.1),
+            new THREE.MeshBasicMaterial({ color: 0x00B4FF, transparent: true, opacity: 0.8 })
+        );
+        textMesh.position.set(0, 3, -9.85);
+        state.scene.add(textMesh);
+
+        var leftWall = new THREE.Mesh(new THREE.BoxGeometry(0.2, 5, 20), wallMat);
+        leftWall.position.set(-10, 2.5, 0);
+        state.scene.add(leftWall);
+
+        var rightWall = new THREE.Mesh(new THREE.BoxGeometry(0.2, 5, 20), wallMat);
+        rightWall.position.set(10, 2.5, 0);
+        state.scene.add(rightWall);
+    }
+
+    function createWindows() {
+        var winMat = new THREE.MeshBasicMaterial({ color: 0x00B4FF, transparent: true, opacity: 0.1, side: THREE.DoubleSide });
+
+        var win1 = new THREE.Mesh(new THREE.PlaneGeometry(3, 2), winMat);
+        win1.position.set(-9.9, 3, 0);
+        win1.rotation.y = Math.PI / 2;
+        state.scene.add(win1);
+
+        var win2 = new THREE.Mesh(new THREE.PlaneGeometry(3, 2), winMat);
+        win2.position.set(9.9, 3, 0);
+        win2.rotation.y = -Math.PI / 2;
+        state.scene.add(win2);
+    }
+
+    function createDecorations() {
+        for (var i = 0; i < 4; i++) {
+            var plant = createPlant();
+            var angle = (i / 4) * Math.PI * 2 + Math.PI / 4;
+            plant.position.set(Math.cos(angle) * 8, 0, Math.sin(angle) * 8);
+            state.scene.add(plant);
+        }
+
+        for (var i = -1; i <= 1; i += 2) {
+            for (var j = -1; j <= 1; j += 2) {
+                var light = createCeilingLight();
+                light.position.set(i * 5, 4.8, j * 5);
+                state.scene.add(light);
+            }
+        }
+    }
+
+    function createPlant() {
+        var group = new THREE.Group();
+
+        var pot = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.3, 0.2, 0.4, 16),
+            new THREE.MeshStandardMaterial({ color: 0x8B4513 })
+        );
+        pot.position.y = 0.2;
+        pot.castShadow = true;
+        group.add(pot);
+
+        var leaf = new THREE.Mesh(
+            new THREE.SphereGeometry(0.4, 8, 8),
+            new THREE.MeshStandardMaterial({ color: 0x228B22 })
+        );
+        leaf.position.y = 0.7;
+        leaf.scale.y = 1.5;
+        group.add(leaf);
+
+        return group;
+    }
+
+    function createCeilingLight() {
+        var group = new THREE.Group();
+
+        var fixture = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.3, 0.1, 0.2, 16),
+            new THREE.MeshStandardMaterial({ color: 0x333333 })
+        );
+        fixture.position.y = 4.9;
+        group.add(fixture);
+
+        var bulb = new THREE.Mesh(
+            new THREE.SphereGeometry(0.15, 16, 16),
+            new THREE.MeshBasicMaterial({ color: 0x00B4FF })
+        );
+        bulb.position.y = 4.7;
+        group.add(bulb);
+
+        var light = new THREE.PointLight(0x00B4FF, 0.3, 8);
+        light.position.y = 4.5;
+        group.add(light);
+
+        return group;
+    }
+
+    // ==========================================
+    // AVATARES
+    // ==========================================
+    function getAvatarColor(colorId) {
+        var colors = { gradient1: 0x00B4FF, gradient2: 0x1E40AF, gradient3: 0xD946EF, gradient4: 0x00ff88, gradient5: 0xffd700, gradient6: 0x8b5cf6 };
+        return colors[colorId] || colors.gradient1;
+    }
+
+    function createAvatar(colorId, style, name) {
+        var group = new THREE.Group();
+        var color = getAvatarColor(colorId);
+
+        var body = new THREE.Mesh(
+            new THREE.CapsuleGeometry(0.3, 0.8, 4, 8),
+            new THREE.MeshStandardMaterial({ color: color })
+        );
+        body.position.y = 0.7;
+        body.castShadow = true;
+        group.add(body);
+
+        var head = new THREE.Mesh(
+            new THREE.SphereGeometry(0.25, 16, 16),
+            new THREE.MeshStandardMaterial({ color: 0xffdbac })
+        );
+        head.position.y = 1.4;
+        head.castShadow = true;
+        group.add(head);
+
+        var eyeMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
+        var leftEye = new THREE.Mesh(new THREE.SphereGeometry(0.03, 8, 8), eyeMat);
+        leftEye.position.set(-0.08, 1.45, 0.2);
+        group.add(leftEye);
+        var rightEye = new THREE.Mesh(new THREE.SphereGeometry(0.03, 8, 8), eyeMat);
+        rightEye.position.set(0.08, 1.45, 0.2);
+        group.add(rightEye);
+
+        if (style === 'executive') {
+            var tie = new THREE.Mesh(
+                new THREE.BoxGeometry(0.1, 0.3, 0.02),
+                new THREE.MeshStandardMaterial({ color: 0xD946EF })
+            );
+            tie.position.set(0, 1.1, 0.28);
+            group.add(tie);
+        } else if (style === 'creative') {
+            var headphone = new THREE.Mesh(
+                new THREE.TorusGeometry(0.28, 0.03, 8, 16, Math.PI),
+                new THREE.MeshStandardMaterial({ color: 0xff6b6b })
+            );
+            headphone.position.y = 1.4;
+            headphone.rotation.x = Math.PI;
+            group.add(headphone);
+        } else if (style === 'tech') {
+            var vr = new THREE.Mesh(
+                new THREE.BoxGeometry(0.35, 0.1, 0.15),
+                new THREE.MeshStandardMaterial({ color: 0x333333 })
+            );
+            vr.position.set(0, 1.45, 0.18);
+            group.add(vr);
+        }
+
+        var canvas = document.createElement('canvas');
+        canvas.width = 256;
+        canvas.height = 64;
+        var ctx = canvas.getContext('2d');
+        ctx.fillStyle = 'rgba(0,0,0,0.7)';
+        ctx.fillRect(0, 0, 256, 64);
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 24px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(name, 128, 40);
+
+        var nameTexture = new THREE.CanvasTexture(canvas);
+        var nameMesh = new THREE.Mesh(
+            new THREE.PlaneGeometry(1, 0.25),
+            new THREE.MeshBasicMaterial({ map: nameTexture, transparent: true, side: THREE.DoubleSide })
+        );
+        nameMesh.position.y = 1.9;
+        nameMesh.userData = { isNameTag: true };
+        group.add(nameMesh);
+
+        return group;
+    }
+
+    // ==========================================
+    // CONTROLES
+    // ==========================================
+    var cameraYaw = 0;
+    var cameraPitch = 0;
+
+    function onKeyDown(e) {
+        state.keys[e.key.toLowerCase()] = true;
+        if (e.key.toLowerCase() === 'e' && state.isInRoom) toggleSit();
+        if (e.key === 'Escape') document.exitPointerLock();
+    }
+
+    function onKeyUp(e) {
+        state.keys[e.key.toLowerCase()] = false;
+    }
+
+    function onMouseMove(e) {
+        state.mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+        state.mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+    }
+
+    function onMouseMoveLocked(e) {
+        if (!state.isInRoom || state.isSeated) return;
+        cameraYaw -= e.movementX * 0.002;
+        cameraPitch -= e.movementY * 0.002;
+        cameraPitch = Math.max(-Math.PI/3, Math.min(Math.PI/3, cameraPitch));
+    }
+
+    function onMouseClick(e) {
+        if (!state.isInRoom || state.isSeated) return;
+        state.raycaster.setFromCamera(state.mouse, state.camera);
+        var intersects = state.raycaster.intersectObjects(state.scene.children, true);
+
+        for (var i = 0; i < intersects.length; i++) {
+            var obj = intersects[i].object;
+            while (obj.parent && !obj.userData.id && obj.parent !== state.scene) {
+                obj = obj.parent;
+            }
+            if (obj.userData && obj.userData.id !== undefined && !obj.userData.isOccupied) {
+                sitOnChair(obj);
+                break;
+            }
+        }
+    }
+
+    function onWindowResize() {
+        if (!state.camera || !state.renderer) return;
+        state.camera.aspect = window.innerWidth / window.innerHeight;
+        state.camera.updateProjectionMatrix();
+        state.renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+
+    // ==========================================
+    // MOVIMENTACAO
+    // ==========================================
+    function updateMovement() {
+        if (!state.localPlayer || state.isSeated) return;
+
+        var forward = new THREE.Vector3(0, 0, -1);
+        forward.applyAxisAngle(new THREE.Vector3(0, 1, 0), cameraYaw);
+
+        var right = new THREE.Vector3(1, 0, 0);
+        right.applyAxisAngle(new THREE.Vector3(0, 1, 0), cameraYaw);
+
+        var moveDir = new THREE.Vector3(0, 0, 0);
+
+        if (state.keys['w'] || state.keys['arrowup']) moveDir.add(forward);
+        if (state.keys['s'] || state.keys['arrowdown']) moveDir.sub(forward);
+        if (state.keys['a'] || state.keys['arrowleft']) moveDir.sub(right);
+        if (state.keys['d'] || state.keys['arrowright']) moveDir.add(right);
+
+        if (moveDir.length() > 0) {
+            moveDir.normalize();
+            state.localPlayer.position.add(moveDir.multiplyScalar(state.moveSpeed));
+
+            state.localPlayer.position.x = Math.max(-9, Math.min(9, state.localPlayer.position.x));
+            state.localPlayer.position.z = Math.max(-9, Math.min(9, state.localPlayer.position.z));
+
+            state.localPlayer.rotation.y = Math.atan2(moveDir.x, moveDir.z);
+            state.localPlayer.position.y = Math.sin(Date.now() * 0.01) * 0.05;
+
+            broadcastPosition();
+        }
+
+        var camOffset = new THREE.Vector3(0, 3, 5);
+        camOffset.applyAxisAngle(new THREE.Vector3(0, 1, 0), cameraYaw);
+        state.camera.position.copy(state.localPlayer.position).add(camOffset);
+        state.camera.lookAt(state.localPlayer.position.x, 1, state.localPlayer.position.z);
+    }
+
+    // ==========================================
+    // SISTEMA DE SENTAR
+    // ==========================================
+    function sitOnChair(chair) {
+        if (state.isSeated) return;
+        state.isSeated = true;
+        state.seatedChair = chair;
+        chair.userData.isOccupied = true;
+
+        var sitPos = chair.userData.sitPosition;
+        state.localPlayer.position.copy(sitPos);
+        state.localPlayer.rotation.y = chair.rotation.y + Math.PI;
+
+        var camOffset = new THREE.Vector3(0, 1.5, -2);
+        camOffset.applyAxisAngle(new THREE.Vector3(0, 1, 0), chair.rotation.y + Math.PI);
+        state.camera.position.copy(sitPos).add(camOffset);
+        state.camera.lookAt(0, 1, 0);
+
+        showNotification('🪑 Voce se sentou. Iniciando videoconferencia...');
+        setTimeout(function() { startVideoConference(); }, 1000);
+        broadcastSit(chair.userData.id);
+    }
+
+    function standUp() {
+        if (!state.isSeated) return;
+        state.isSeated = false;
+        if (state.seatedChair) {
+            state.seatedChair.userData.isOccupied = false;
+            state.seatedChair = null;
+        }
+        cameraYaw = 0;
+        cameraPitch = 0;
+        closeVideo();
+        showNotification('🚶 Voce levantou da mesa');
+        broadcastStand();
+    }
+
+    function toggleSit() {
+        if (state.isSeated) {
+            standUp();
+        } else {
+            var nearestChair = null;
+            var nearestDist = Infinity;
+
+            state.chairs.forEach(function(chair) {
+                var dist = state.localPlayer.position.distanceTo(chair.position);
+                if (dist < 2 && dist < nearestDist && !chair.userData.isOccupied) {
+                    nearestDist = dist;
+                    nearestChair = chair;
+                }
+            });
+
+            if (nearestChair) {
+                sitOnChair(nearestChair);
+            } else {
+                showNotification('❌ Aproxime-se de uma cadeira disponivel');
+            }
+        }
+    }
+
+    // ==========================================
+    // JITSI VIDEOCONFERENCIA
+    // ==========================================
+    function startVideoConference() {
+        if (typeof JitsiMeetExternalAPI === 'undefined') {
+            showNotification('❌ Jitsi nao carregou');
+            return;
+        }
+
+        var videoPanel = document.getElementById('video-panel');
+        if (videoPanel) videoPanel.classList.add('active');
+
+        var options = {
+            roomName: state.roomId,
+            width: '100%',
+            height: '100%',
+            parentNode: document.querySelector('#jitsi-container'),
+            userInfo: { displayName: state.userName },
+            configOverwrite: {
+                startWithAudioMuted: true,
+                startWithVideoMuted: false,
+                prejoinPageEnabled: false
+            },
+            interfaceConfigOverwrite: {
+                TOOLBAR_BUTTONS: ['microphone', 'camera', 'hangup', 'chat', 'settings', 'videoquality', 'tileview'],
+                SHOW_JITSI_WATERMARK: false,
+                SHOW_WATERMARK_FOR_GUESTS: false,
+                DEFAULT_BACKGROUND: '#000000'
+            }
+        };
+
+        if (state.jitsiApi) {
+            try { state.jitsiApi.dispose(); } catch(e) {}
+        }
+
+        try {
+            state.jitsiApi = new JitsiMeetExternalAPI('meet.jit.si', options);
+
+            state.jitsiApi.addEventListener('videoConferenceJoined', function() {
+                showNotification('📹 Voce entrou na videoconferencia!');
+            });
+
+            state.jitsiApi.addEventListener('participantJoined', function(participant) {
+                showNotification('👤 ' + (participant.displayName || 'Alguem') + ' entrou na reuniao');
+            });
+        } catch (err) {
+            log('ERRO Jitsi: ' + err.message);
+            showNotification('❌ Erro ao iniciar video');
+        }
+    }
+
+    function closeVideo() {
+        var videoPanel = document.getElementById('video-panel');
+        if (videoPanel) videoPanel.classList.remove('active');
+
+        if (state.jitsiApi) {
+            try {
+                state.jitsiApi.executeCommand('hangup');
+                setTimeout(function() {
+                    try { state.jitsiApi.dispose(); } catch(e) {}
+                    state.jitsiApi = null;
+                }, 500);
+            } catch(e) {
+                state.jitsiApi = null;
+            }
+        }
+    }
+
+    // ==========================================
+    // MULTIPLAYER
+    // ==========================================
+    function initBroadcastChannel() {
+        try {
+            if (typeof BroadcastChannel !== 'undefined') {
+                state.bc = new BroadcastChannel('devnexus_virtual_office');
+
+                state.bc.onmessage = function(event) {
+                    var data = event.data;
+                    if (data.roomId !== state.roomId) return;
+                    if (data.userId === state.userId) return;
+
+                    switch (data.type) {
+                        case 'join': addRemotePlayer(data); break;
+                        case 'leave': removeRemotePlayer(data.userId); break;
+                        case 'position': updateRemotePlayer(data); break;
+                        case 'sit': remotePlayerSit(data); break;
+                        case 'stand': remotePlayerStand(data); break;
+                    }
+                    updateParticipantsList();
+                };
+
+                log('BroadcastChannel ativo');
+            } else {
+                log('BroadcastChannel nao suportado');
+            }
+        } catch(e) {
+            log('ERRO BroadcastChannel: ' + e.message);
+        }
+    }
+
+    function broadcastPosition() {
+        if (!state.bc) return;
+        try {
+            state.bc.postMessage({
+                type: 'position',
+                userId: state.userId,
+                name: state.userName,
+                color: state.avatarColor,
+                style: state.avatarStyle,
+                position: {
+                    x: state.localPlayer.position.x,
+                    y: state.localPlayer.position.y,
+                    z: state.localPlayer.position.z
+                },
+                rotation: state.localPlayer.rotation.y,
+                roomId: state.roomId
+            });
+        } catch(e) {}
+    }
+
+    function broadcastSit(chairId) {
+        if (!state.bc) return;
+        try {
+            state.bc.postMessage({ type: 'sit', userId: state.userId, chairId: chairId, roomId: state.roomId });
+        } catch(e) {}
+    }
+
+    function broadcastStand() {
+        if (!state.bc) return;
+        try {
+            state.bc.postMessage({ type: 'stand', userId: state.userId, roomId: state.roomId });
+        } catch(e) {}
+    }
+
+    function broadcastJoin() {
+        if (!state.bc) return;
+        try {
+            state.bc.postMessage({
+                type: 'join',
+                userId: state.userId,
+                name: state.userName,
+                color: state.avatarColor,
+                style: state.avatarStyle,
+                roomId: state.roomId
+            });
+        } catch(e) {}
+    }
+
+    function broadcastLeave() {
+        if (!state.bc) return;
+        try {
+            state.bc.postMessage({ type: 'leave', userId: state.userId, roomId: state.roomId });
+        } catch(e) {}
+    }
+
+    function addRemotePlayer(data) {
+        if (state.players[data.userId]) return;
+
+        var avatar = createAvatar(data.color, data.style, data.name);
+        avatar.position.set(data.position.x, data.position.y, data.position.z);
+        state.scene.add(avatar);
+        state.players[data.userId] = {
+            mesh: avatar,
+            name: data.name,
+            color: data.color,
+            style: data.style
+        };
+
+        showNotification('👋 ' + data.name + ' entrou na sala!');
+        updateParticipantsList();
+    }
+
+    function removeRemotePlayer(id) {
+        var player = state.players[id];
+        if (player) {
+            state.scene.remove(player.mesh);
+            delete state.players[id];
+            showNotification('👋 ' + player.name + ' saiu da sala');
+            updateParticipantsList();
+        }
+    }
+
+    function updateRemotePlayer(data) {
+        var player = state.players[data.userId];
+        if (player) {
+            player.mesh.position.set(data.position.x, data.position.y, data.position.z);
+            player.mesh.rotation.y = data.rotation;
+        } else {
+            addRemotePlayer(data);
+        }
+    }
+
+    function remotePlayerSit(data) {
+        var player = state.players[data.userId];
+        if (player && state.chairs[data.chairId]) {
+            var chair = state.chairs[data.chairId];
+            player.mesh.position.copy(chair.userData.sitPosition);
+            player.mesh.rotation.y = chair.rotation.y + Math.PI;
+            chair.userData.isOccupied = true;
+        }
+    }
+
+    function remotePlayerStand(data) {
+        var player = state.players[data.userId];
+        if (player) {
+            player.mesh.position.y = 0;
+            state.chairs.forEach(function(chair) {
+                if (chair.userData.isOccupied) chair.userData.isOccupied = false;
+            });
+        }
+    }
+
+    function updateParticipantsList() {
+        var list = document.getElementById('participants-list');
+        if (!list) return;
+
+        var html = '';
+        html += '<div class="participant-item">' +
+            '<div class="participant-avatar" style="background: linear-gradient(135deg, ' + getColorHex(state.avatarColor) + ', #D946EF)">' + state.userName[0] + '</div>' +
+            '<span>' + state.userName + ' (Voce)</span>' +
+        '</div>';
+
+        for (var id in state.players) {
+            var player = state.players[id];
+            html += '<div class="participant-item">' +
+                '<div class="participant-avatar" style="background: linear-gradient(135deg, ' + getColorHex(player.color) + ', #D946EF)">' + player.name[0] + '</div>' +
+                '<span>' + player.name + '</span>' +
+            '</div>';
+        }
+
+        list.innerHTML = html;
+        var hudUsers = document.getElementById('hud-users');
+        if (hudUsers) hudUsers.textContent = '👥 ' + (Object.keys(state.players).length + 1) + ' participante' + (Object.keys(state.players).length > 0 ? 's' : '');
+    }
+
+    function getColorHex(colorId) {
+        var hex = { gradient1: '#00B4FF', gradient2: '#1E40AF', gradient3: '#D946EF', gradient4: '#00ff88', gradient5: '#ffd700', gradient6: '#8b5cf6' };
+        return hex[colorId] || '#00B4FF';
+    }
+
+    // ==========================================
+    // ENTRADA NA SALA
+    // ==========================================
+    function enterRoom() {
+        log('=== ENTRANDO NA SALA ===');
+
+        try {
+            // Coletar dados
+            var nameInput = document.getElementById('user-name');
+            state.userName = (nameInput && nameInput.value) ? nameInput.value.trim() : 'Visitante';
+            if (!state.userName) state.userName = 'Visitante';
+
+            var activeColor = document.querySelector('#color-picker .color-option.active');
+            state.avatarColor = activeColor ? activeColor.dataset.color : 'gradient1';
+
+            var activeStyle = document.querySelector('#style-picker .style-option.active');
+            state.avatarStyle = activeStyle ? activeStyle.dataset.style : 'casual';
+
+            log('Config: nome=' + state.userName + ' cor=' + state.avatarColor + ' estilo=' + state.avatarStyle);
+
+            // Verificar Three.js
+            if (!state.scene) {
+                log('ERRO: Cena 3D nao inicializada');
+                showNotification('❌ Erro: 3D nao carregou');
+                return;
+            }
+
+            // Criar avatar
+            state.localPlayer = createAvatar(state.avatarColor, state.avatarStyle, state.userName);
+            state.localPlayer.position.set(0, 0, 6);
+            state.scene.add(state.localPlayer);
+            log('Avatar criado');
+
+            // Esconder tela de entrada
+            var entryScreen = document.getElementById('entry-screen');
+            if (entryScreen) {
+                entryScreen.style.transition = 'opacity 0.6s ease';
+                entryScreen.style.opacity = '0';
+                setTimeout(function() {
+                    entryScreen.style.display = 'none';
+                }, 600);
+            }
+
+            // Mostrar HUD
+            state.isInRoom = true;
+
+            var hud = document.getElementById('hud');
+            if (hud) hud.style.display = 'block';
+
+            var controlsHint = document.getElementById('controls-hint');
+            if (controlsHint) controlsHint.style.display = 'block';
+
+            var participantsPanel = document.getElementById('participants-panel');
+            if (participantsPanel) participantsPanel.style.display = 'block';
+
+            var hudRoom = document.getElementById('hud-room');
+            if (hudRoom) hudRoom.textContent = 'Sala: ' + state.roomId;
+
+            // Atualizar URL
+            window.history.replaceState({}, '', '?room=' + state.roomId);
+
+            // Iniciar multiplayer
+            initBroadcastChannel();
+            broadcastJoin();
+            updateParticipantsList();
+
+            showNotification('🎉 Bem-vindo a Sala DevNexus!');
+            log('=== ENTRADA CONCLUIDA ===');
+
+        } catch (err) {
+            log('ERRO CRITICO: ' + err.message);
+            console.error(err);
+            showNotification('❌ Erro ao entrar: ' + err.message);
+        }
+    }
+
+    // ==========================================
+    // UI INTERACOES
+    // ==========================================
+    function setupUI() {
+        // Cores
+        document.querySelectorAll('#color-picker .color-option').forEach(function(opt) {
+            opt.addEventListener('click', function() {
+                document.querySelectorAll('#color-picker .color-option').forEach(function(o) { o.classList.remove('active'); });
+                this.classList.add('active');
+                var preview = document.getElementById('avatar-preview');
+                if (preview) preview.style.background = this.style.background;
+            });
+        });
+
+        // Estilos
+        document.querySelectorAll('#style-picker .style-option').forEach(function(opt) {
+            opt.addEventListener('click', function() {
+                document.querySelectorAll('#style-picker .style-option').forEach(function(o) { o.classList.remove('active'); });
+                this.classList.add('active');
+            });
+        });
+
+        // Scroll hint
+        var entryScreen = document.getElementById('entry-screen');
+        var scrollHint = document.getElementById('scroll-hint');
+        if (entryScreen && scrollHint) {
+            entryScreen.addEventListener('scroll', function() {
+                if (entryScreen.scrollTop > 50) {
+                    scrollHint.style.opacity = '0';
+                    scrollHint.style.transition = 'opacity 0.5s';
+                }
+            });
+        }
+
+        log('UI configurada');
+    }
+
+    // ==========================================
+    // GAME LOOP
+    // ==========================================
+    function animate() {
+        requestAnimationFrame(animate);
+
+        if (state.isInRoom && state.scene && state.renderer && state.camera) {
+            updateMovement();
+
+            state.chairs.forEach(function(chair) {
+                var indicator = null;
+                for (var i = 0; i < chair.children.length; i++) {
+                    if (chair.children[i].userData && chair.children[i].userData.isIndicator) {
+                        indicator = chair.children[i];
+                        break;
+                    }
+                }
+                if (indicator && indicator.material) {
+                    indicator.position.y = 1.8 + Math.sin(Date.now() * 0.003) * 0.1;
+                    indicator.material.opacity = chair.userData.isOccupied ? 0.2 : 0.6;
+                    indicator.material.color.setHex(chair.userData.isOccupied ? 0xff0000 : 0x00ff88);
+                }
+            });
+
+            state.scene.traverse(function(obj) {
+                if (obj.userData && obj.userData.isNameTag) {
+                    obj.lookAt(state.camera.position);
+                }
+            });
+        }
+
+        if (state.renderer && state.scene && state.camera) {
+            state.renderer.render(state.scene, state.camera);
+        }
+    }
+
+    // ==========================================
+    // INICIALIZACAO
+    // ==========================================
+    window.addEventListener('beforeunload', function() {
+        broadcastLeave();
+        if (state.jitsiApi) {
+            try { state.jitsiApi.dispose(); } catch(e) {}
+        }
+    });
+
+    function initApp() {
+        log('========================================');
+        log('DevNexus Virtual Office - Iniciando...');
+        log('========================================');
+
+        updateRoomLink();
+        setupUI();
+
+        var threeOk = initThreeJS();
+        if (threeOk) {
+            animate();
+            log('PRONTO! Clique em "Entrar na Sala"');
+        } else {
+            showNotification('❌ Falha ao carregar 3D');
+        }
+    }
+
+    // Iniciar quando DOM estiver pronto
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initApp);
+    } else {
+        initApp();
+    }
+
+    // Detectar entrada via link
+    if (urlParams.get('room')) {
+        showNotification('🔗 Voce entrou via link compartilhado!');
+    }
+    </script>
+</body>
+</html>
